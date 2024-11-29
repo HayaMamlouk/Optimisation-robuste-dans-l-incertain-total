@@ -4,51 +4,51 @@
 
 from gurobipy import *
 
-# Number of projects and scenarios
-nb_projects = 10
-nb_scenarios = 2
+nb_projects = 10  # nombre de projets
+nb_scenarios = 2  # nombre de scénarios
 
-# Costs of the projects
+# coûts des projets
 costs = [60, 10, 15, 20, 25, 20, 5, 15, 20, 60]
 
-# Utilities of the projects in each scenario
+# utilités des projets dans chaque scénario
 utilities = [
     [70, 18, 16, 14, 12, 10, 8, 6, 4, 2],  # Scenario 1
     [2, 4, 6, 8, 10, 12, 14, 16, 18, 70]   # Scenario 2
 ]
 
-# Budget constraint
+# budget maximal
 budget = 100
 
-# Initialize the model
-m = Model("maxmin_robust_optimization")
+# initialisation du modèle
+m = Model("maxmin")
 
-# Decision variables: x[j] is 1 if project j is selected, 0 otherwise
+# declaration des variables de decision, x_j = 1 si le projet j est sélectionné, 0 sinon
 x = []
 for j in range(nb_projects):
     x.append(m.addVar(vtype=GRB.BINARY, name="x%d" % (j + 1)))
 
-# Auxiliary variable t representing the minimum utility
+# variable t pour représenter la valeur minimale de z_i(x) 
 t = m.addVar(vtype=GRB.CONTINUOUS, name="t")
 
-# Update the model to integrate new variables
+# maj du modele pour integrer les nouvelles variables
 m.update()
 
-# Objective: Maximize t
+# definition de l'ojectif (maximiser t)
 m.setObjective(t, GRB.MAXIMIZE)
 
-# Constraints for t <= z_i(x) for all scenarios
+# definition des contraintes
+# contrainte t est la valeur minimale de z_i(x) pour tous les scénarios i
 for i in range(nb_scenarios):
     m.addConstr(t <= quicksum(utilities[i][j] * x[j] for j in range(nb_projects)), 
                 "scenario_%d" % (i + 1))
 
-# Budget constraint
+# contrainte de budget
 m.addConstr(quicksum(costs[j] * x[j] for j in range(nb_projects)) <= budget, "budget")
 
-# Solve the model
+# Resolution
 m.optimize()
 
-# Print the solution
+
 print("")
 print("Solution optimale:")
 for j in range(nb_projects):
@@ -56,6 +56,6 @@ for j in range(nb_projects):
 print("")
 print("Valeur de la fonction objective (t) :", t.x)
 
-# Compute the resulting utilities z(x) in each scenario
+# Utilités dans les scénarios
 z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
 print("Utilités dans les scénarios:", z)

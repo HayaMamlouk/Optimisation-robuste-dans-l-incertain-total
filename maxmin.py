@@ -4,7 +4,7 @@
 
 from gurobipy import *
 
-def maxmin(nb_projects, nb_scenarios, costs, utilities, budget) :
+def maxmin(nb_projects, nb_scenarios, costs, utilities, budget, verbose=True) :
     """
     Résoudre le problème de maxmin
     """
@@ -37,16 +37,16 @@ def maxmin(nb_projects, nb_scenarios, costs, utilities, budget) :
     # Resolution
     m.optimize()
 
+    if verbose:
+        print("")
+        print("Solution optimale:")
+        for j in range(nb_projects):
+            print("x%d = %d" % (j + 1, x[j].x))
+        print("")
+        print("Valeur de la fonction objective (t) :", t.x)
 
-    print("")
-    print("Solution optimale:")
-    for j in range(nb_projects):
-        print("x%d = %d" % (j + 1, x[j].x))
-    print("")
-    print("Valeur de la fonction objective (t) :", t.x)
-
-    # Utilités dans les scénarios
-    z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
-    print("Utilités dans les scénarios:", z)
+        # Utilités dans les scénarios
+        z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
+        print("Utilités dans les scénarios:", z)
 
     return

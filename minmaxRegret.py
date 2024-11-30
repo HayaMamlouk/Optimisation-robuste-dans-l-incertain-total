@@ -2,7 +2,7 @@
 
 from gurobipy import *
 
-def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget) :
+def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget, verbose=True) :
     # Etape 1: trouver z*_i pour chaque scénario i
     z_star = []
     x_values = []
@@ -56,24 +56,24 @@ def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget) :
     # Resolution
     m.optimize()
 
+    if verbose:
+        print("")
+        print("z*_i pour chaque scénario i:", z_star)
+        print("Valeurs des variables x dans chaque scénario:", x_values)
 
-    print("")
-    print("z*_i pour chaque scénario i:", z_star)
-    print("Valeurs des variables x dans chaque scénario:", x_values)
+        print("Solution optimale:")
+        for j in range(nb_projects):
+            print("x%d = %d" % (j + 1, x[j].x))
 
-    print("Solution optimale:")
-    for j in range(nb_projects):
-        print("x%d = %d" % (j + 1, x[j].x))
+        print("")
+        print("Valeur de la fonction objective (minmax regret) :", t.x)
 
-    print("")
-    print("Valeur de la fonction objective (minmax regret) :", t.x)
+        # Compute the resulting utilities z(x) in each scenario
+        z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
+        print("Utilités dans les scénarios:", z)
 
-    # Compute the resulting utilities z(x) in each scenario
-    z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
-    print("Utilités dans les scénarios:", z)
-
-    # Compute regrets for each scenario
-    regrets = [z_star[i] - z[i] for i in range(nb_scenarios)]
-    print("Regrets dans les scénarios:", regrets)
+        # Compute regrets for each scenario
+        regrets = [z_star[i] - z[i] for i in range(nb_scenarios)]
+        print("Regrets dans les scénarios:", regrets)
 
     return 

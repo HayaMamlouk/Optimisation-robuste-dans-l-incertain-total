@@ -1,9 +1,6 @@
 import random
 import time
 import pandas as pd
-from maxmin import maxmin
-from gurobipy import Model, GRB, quicksum
-from myData import n_values, p_values, nb_instances
 
 def calcul_tps_resol(func, n_values, p_values, nb_instances):
     # Store results
@@ -49,4 +46,3 @@ def calcul_tps_resol(func, n_values, p_values, nb_instances):
     print(results_df)
     return results_df
 
-calcul_tps_resol(maxmin, n_values, p_values, nb_instances)

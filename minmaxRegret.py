@@ -2,72 +2,79 @@
 
 from gurobipy import *
 
-# Number of projects and scenarios
-n_projects = 10
-n_scenarios = 2
+n_projects = 10  # nombre de projets
+n_scenarios = 2  # nombre de scénarios
 
-# Costs of the projects
+# coûts des projets
 costs = [60, 10, 15, 20, 25, 20, 5, 15, 20, 60]
 
-# Utilities of the projects in each scenario
+# utilités des projets dans chaque scénario
 utilities = [
     [70, 18, 16, 14, 12, 10, 8, 6, 4, 2],  # Scenario 1
     [2, 4, 6, 8, 10, 12, 14, 16, 18, 70]   # Scenario 2
 ]
 
-# Budget constraint
+# budget maximal
 budget = 100
 
-# Step 1: Find z*_i for each scenario
+# Etape 1: trouver z*_i pour chaque scénario i
 z_star = []
+x_values = []
 
 for i in range(n_scenarios):
-    model = Model("maximize_scenario_%d" % (i + 1))
+    # initialisation du modèle
+    m = Model("maximize_scenario_%d" % (i + 1))
     
-    # Decision variables
+    # declaration des variables de decision, x_j = 1 si le projet j est sélectionné, 0 sinon
     x = []
     for j in range(n_projects):
-        x.append(model.addVar(vtype=GRB.BINARY, name="x%d" % (j + 1)))
+        x.append(m.addVar(vtype=GRB.BINARY, name="x%d" % (j + 1)))
 
-    # Objective: Maximize utility in scenario i
-    model.setObjective(quicksum(utilities[i][j] * x[j] for j in range(n_projects)), GRB.MAXIMIZE)
+    # definition de l'ojectif (maximiser z_i(x))
+    m.setObjective(quicksum(utilities[i][j] * x[j] for j in range(n_projects)), GRB.MAXIMIZE)
 
-    # Budget constraint
-    model.addConstr(quicksum(costs[j] * x[j] for j in range(n_projects)) <= budget, "budget_constraint")
+    # definition des contraintes
+    m.addConstr(quicksum(costs[j] * x[j] for j in range(n_projects)) <= budget, "budget_constraint")
 
-    # Solve the model
-    model.optimize()
+    # Resolution
+    m.optimize()
 
-    # Record z*_i
-    z_star.append(model.objVal)
+    # Stocker la valeur optimale de z_i
+    z_star.append(m.objVal)
+    # stocker les valeurs des variables x
+    x_values.append([x[j].x for j in range(n_projects)])
 
-# Step 2: Minimize max regret
-model = Model("minmax_regret")
+# etape 2: résoudre le problème de minimisation du regret
+m = Model("minmax_regret")
 
-# Decision variables
+# declaration des variables de decision
 x = []
 for j in range(n_projects):
-    x.append(model.addVar(vtype=GRB.BINARY, name="x%d" % (j + 1)))
+    x.append(m.addVar(vtype=GRB.BINARY, name="x%d" % (j + 1)))
 
-# Auxiliary variable for max regret
-t = model.addVar(vtype=GRB.CONTINUOUS, name="max_regret")
+# variable t pour représenter le regret maximal
+t = m.addVar(vtype=GRB.CONTINUOUS, name="max_regret")
 
-# Objective: Minimize t
-model.setObjective(t, GRB.MINIMIZE)
+# definition de l'ojectif (minimiser t)
+m.setObjective(t, GRB.MINIMIZE)
 
-# Regret constraints
+# definition des contraintes
+# contrainte t est la valeur maximale de z*_i - z_i(x) pour tous les scénarios i
 for i in range(n_scenarios):
     regret = z_star[i] - quicksum(utilities[i][j] * x[j] for j in range(n_projects))
-    model.addConstr(t >= regret, "regret_constraint_%d" % (i + 1))
+    m.addConstr(t >= regret, "regret_constraint_%d" % (i + 1))
 
-# Budget constraint
-model.addConstr(quicksum(costs[j] * x[j] for j in range(n_projects)) <= budget, "budget_constraint")
+# contrainte de budget
+m.addConstr(quicksum(costs[j] * x[j] for j in range(n_projects)) <= budget, "budget_constraint")
 
-# Solve the model
-model.optimize()
+# Resolution
+m.optimize()
 
-# Print the solution
+
 print("")
+print("z*_i pour chaque scénario i:", z_star)
+print("Valeurs des variables x dans chaque scénario:", x_values)
+
 print("Solution optimale:")
 for j in range(n_projects):
     print("x%d = %d" % (j + 1, x[j].x))

@@ -38,10 +38,7 @@ def calcul_tps_resol(func, n_values, p_values, nb_instances):
 
     # Convert results to a DataFrame
     results_df = pd.DataFrame(results)
-
-    # Save results to a CSV file
-    results_df.to_csv("knapsack_resolution_times.csv", index=False)
-
+    
     # Display the results
     print(results_df)
     return results_df

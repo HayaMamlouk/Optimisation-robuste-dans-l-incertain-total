@@ -26,3 +26,5 @@ p_values = [10, 15, 20] # nombre de projets
 nb_instances = 10      # nombre d'instances à génére
 
 ##############################################################################################
+
+weights = [2, 1]  # poids des objectifs pour OWA 

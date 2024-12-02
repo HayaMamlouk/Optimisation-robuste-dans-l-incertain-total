@@ -75,9 +75,7 @@ def maxOWA(nb_projects, nb_scenarios, costs, utilities, budget, weights, verbose
         # valeurs des r_k dans chaque scénario
         r_values = [rk[k].x for k in range(nb_scenarios)]
         print("Valeurs des r_k dans chaque scénario:", r_values)
-
-        # Valeurs des z triés
-        z_sorted_values = [z_sorted[i].x for i in range(nb_scenarios)]
-        print("Valeurs de z trié:", z_sorted_values)
-
+        
+        print("w'_k:", w_prime)
+        print("b_ik:", [[b[i][k].x for k in range(nb_scenarios)] for i in range(nb_scenarios)])
     return

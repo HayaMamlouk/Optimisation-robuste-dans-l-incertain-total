@@ -1,138 +1,157 @@
-from gurobipy import Model, GRB, quicksum
-from cheminPlusRapide import chemin_plus_rapide
+import gurobipy as gp
+from gurobipy import *
+from cheminPlusRapide import *
 
-def chemin_robuste(nodes, transitions, start, end, weights, k_values, function="maximin"):
+def robust_shortest_path_maxmin(nodes, arcs, start, end, scenarios):
     """
-    Solves the robust path problem using different robust functions.
+    Résout le problème du chemin robuste en utilisant l'approche MaxMin.
+
+    Paramètres :
+    - nodes : liste des nœuds du graphe.
+    - arcs : dictionnaire {(i, j): [t_s1, t_s2, ...]} représentant les temps de trajet pour chaque arc et chaque scénario.
+    - start : nœud de départ.
+    - end : nœud d'arrivée.
+    - scenarios : nombre de scénarios.
+
+    Retourne :
+    - Le chemin robuste optimal et sa durée maximale.
     """
-    scenarios = len(next(iter(transitions.values())))  # Number of scenarios
-    costs = {arc: transitions[arc] for arc in transitions}
+    # Création du modèle
+    model = gp.Model("RobustShortestPath_MaxMin")
+    model.setParam('OutputFlag', 0)  # Désactiver les sorties de Gurobi
 
-    # Precompute optimal paths per scenario for minimax regret
-    shortest_paths = []
-    for scenario in range(scenarios):
-        sp_result = chemin_plus_rapide(nodes, transitions, start, end, scenario)
-        shortest_paths.append(sp_result["cost"] if "cost" in sp_result else float("inf"))
+    # Variables de décision : x_ij = 1 si l'arc (i, j) est sélectionné, 0 sinon
+    x = model.addVars(arcs.keys(), vtype=GRB.BINARY, name="x")
 
-    # Create Gurobi model
-    model = Model("RobustPath")
-    model.setParam("OutputFlag", 0)  # Suppress Gurobi output
+    # Variable t représentant la valeur minimale des temps de trajet négatifs
+    z = model.addVar(vtype=GRB.CONTINUOUS, name="z")
 
-    # Decision variables: x[i, j] = 1 if arc (i, j) is in the solution, 0 otherwise
-    x = model.addVars(transitions.keys(), vtype=GRB.BINARY, name="x")
-
-    if function == "maximin":
-        # Maximin: Minimize the maximum cost across all scenarios
-        z = model.addVar(vtype=GRB.CONTINUOUS, name="z")
-        model.setObjective(z, GRB.MINIMIZE)
-        for s in range(scenarios):
-            model.addConstr(z >= quicksum(costs[arc][s] * x[arc] for arc in transitions), f"Maximin_{s}")
-
-    elif function == "minimax_regret":
-        # Minimax Regret: Minimize the maximum regret
-        z = model.addVar(vtype=GRB.CONTINUOUS, name="z")
-        model.setObjective(z, GRB.MINIMIZE)
-        for s in range(scenarios):
-            regret = quicksum(costs[arc][s] * x[arc] for arc in transitions) - shortest_paths[s]
-            model.addConstr(z >= regret, f"MinimaxRegret_{s}")
-
-    elif function == "owa":
-        # OWA: Minimize the weighted sum of sorted costs
-        r = [model.addVar(vtype=GRB.CONTINUOUS, name=f"r_{s}") for s in range(scenarios)]
-        z_sorted = [model.addVar(vtype=GRB.CONTINUOUS, name=f"z_sorted_{s}") for s in range(scenarios)]
-        model.setObjective(quicksum(weights[k] * z_sorted[k] for k in range(scenarios)), GRB.MINIMIZE)
-
-        # Calculate costs for each scenario
-        for s in range(scenarios):
-            model.addConstr(r[s] == quicksum(costs[arc][s] * x[arc] for arc in transitions), f"OWA_Cost_{s}")
-
-        # Sorting constraints to link z_sorted with r
-        for i in range(scenarios - 1):
-            model.addConstr(z_sorted[i] >= z_sorted[i + 1], f"Sorting_{i}")
-        for i in range(scenarios):
-            model.addConstr(z_sorted[i] <= r[i], f"LinkSorted_{i}")
-
-    elif function == "weighted_sum":
-        # Weighted Sum: Minimize the weighted sum of costs
-        model.setObjective(
-            quicksum(weights[s] * quicksum(costs[arc][s] * x[arc] for arc in transitions) for s in range(scenarios)),
-            GRB.MINIMIZE
-        )
+    model.update()
+    model.setObjective(z, GRB.MAXIMIZE)
 
     # Flow constraints
+    # Source node
     model.addConstr(
-        quicksum(x[(start, j)] for j in nodes if (start, j) in transitions) -
-        quicksum(x[(i, start)] for i in nodes if (i, start) in transitions) == 1,
+        quicksum(x[(start, j)] for j in nodes if (start, j) in arcs) -
+        quicksum(x[(i, start)] for i in nodes if (i, start) in arcs) == 1,
         "flow_source"
     )
+
+    # Destination node
     model.addConstr(
-        quicksum(x[(end, j)] for j in nodes if (end, j) in transitions) -
-        quicksum(x[(i, end)] for i in nodes if (i, end) in transitions) == -1,
+        quicksum(x[(end, j)] for j in nodes if (end, j) in arcs) -
+        quicksum(x[(i, end)] for i in nodes if (i, end) in arcs) == -1,
         "flow_destination"
     )
+
+    # Flow conservation for intermediate nodes
     for v in nodes:
         if v != start and v != end:
             model.addConstr(
-                quicksum(x[(v, j)] for j in nodes if (v, j) in transitions) -
-                quicksum(x[(i, v)] for i in nodes if (i, v) in transitions) == 0,
+                quicksum(x[(v, j)] for j in nodes if (v, j) in arcs) -
+                quicksum(x[(i, v)] for i in nodes if (i, v) in arcs) == 0,
                 f"flow_{v}"
             )
 
-    # Solve the model
+    # Contraintes pour z
+    for arc,_ in arcs.items():
+        for s in range(scenarios):
+            model.addConstr(z <= gp.quicksum(-arcs[i, j][s] * x[i, j] for i, j in arcs), f"time_scenario_{s}")
+
+    # Résolution du modèle
     model.optimize()
 
-    # Extract the solution
-    if model.status == GRB.OPTIMAL:
-        selected_arcs = [arc for arc in transitions if x[arc].x > 0.5]
-        solution = {
-            "path": selected_arcs,
-            "cost": model.objVal
-        }
-        return solution
-    else:
-        return {"message": "No optimal solution found."}
-
+    # Extraction du chemin optimal
     
-# Define Instances
-nodes1 = ['a', 'b', 'c', 'd', 'e', 'f']
-transitions1 = {
-    ('a', 'b'): (4, 3), ('a', 'c'): (5, 1),
-    ('b', 'c'): (2, 1), ('b', 'd'): (1, 4), ('b', 'e'): (2, 2), ('b', 'f'): (7, 5),
-    ('c', 'd'): (5, 1), ('c', 'e'): (2, 7),
-    ('d', 'f'): (3, 2), 
-    ('e', 'f'): (5, 2)
+    if model.status == GRB.OPTIMAL:
+    # Access variable values
+        selected_arcs = [arc for arc in arcs if x[arc].x > 0.5]
+        return selected_arcs, -z.x  # Retourner la valeur positive du temps
+    else:
+        print(f"Optimization was unsuccessful. Status code: {model.status}")
+        return None, None
+    
+
+def robust_shortest_path_minmax_regret(nodes, arcs, start, end, scenarios):
+    """
+    Solves the Min-Max Regret robust shortest path problem.
+
+    Parameters:
+    - nodes: List of nodes in the graph.
+    - arcs: Dictionary {(i, j): [t_s1, t_s2, ...]} with travel times for each arc under each scenario.
+    - start: Starting node.
+    - end: Destination node.
+    - scenarios: Number of scenarios.
+
+    Returns:
+    - Optimal path minimizing the maximum regret and the corresponding regret value.
+    """
+    # Step 1: Compute optimal path costs for each scenario
+    z_star = []
+    # for s in range(scenarios):
+    #     result = chemin_plus_rapide(nodes, arcs, start, end, s)
+    #     cost = result['cost']
+    #     z_star.append(cost)
+
+    print("The shortest path costs for each scenario are:")
+    print(z_star)
+    print()
+    
+    # Step 2: Solve the Min-Max Regret problem
+    model = gp.Model("MinMax_Regret_Shortest_Path")
+    model.setParam('OutputFlag', 0)
+
+    x = model.addVars(arcs.keys(), vtype=GRB.BINARY, name="x")
+    regret_max = model.addVar(vtype=GRB.CONTINUOUS, name="regret_max")
+    model.setObjective(regret_max, GRB.MINIMIZE)
+
+    # for i in range(nb_scenarios):
+    #     regret = z_star[i] - quicksum(utilities[i][j] * x[j] for j in range(nb_projects))
+    #     m.addConstr(t >= regret, "regret_constraint_%d" % (i + 1))
+    
+    # Regret constraints for each scenario
+    for s in range(scenarios):
+        regret = z_star[s] - quicksum(arcs[arc][s] * x[arc] for arc in arcs)
+        model.addConstr(regret_max >= regret, name=f"regret_scenario_{s}")
+    
+    # Flow conservation constraints
+    for node in nodes:
+        inflow = quicksum(x[i, node] for i in nodes if (i, node) in arcs)
+        outflow = quicksum(x[node, j] for j in nodes if (node, j) in arcs)
+        if node == start:
+            model.addConstr(outflow - inflow == 1, name=f"flow_{node}")
+        elif node == end:
+            model.addConstr(inflow - outflow == 1, name=f"flow_{node}")
+        else:
+            model.addConstr(inflow - outflow == 0, name=f"flow_{node}")
+    
+    model.optimize()
+    
+    if model.status == GRB.OPTIMAL:
+        selected_arcs = [arc for arc in arcs if x[arc].x > 0.5]
+        return selected_arcs, model.objVal
+    else:
+        raise ValueError("Optimal robust path not found.")
+
+
+
+# Exemple d'utilisation
+nodes = ['a', 'b', 'c', 'd', 'e', 'f']
+arcs = {
+    ('a', 'b'): [4, 3], ('a', 'c'): [5, 1],
+    ('b', 'c'): [2, 1], ('b', 'd'): [1, 4], ('b', 'e'): [2, 2], ('b', 'f'): [7, 5],
+    ('c', 'd'): [5, 1], ('c', 'e'): [2, 7],
+    ('d', 'f'): [3, 2],
+    ('e', 'f'): [5, 2]
 }
-start1 = 'a'
-end1 = 'f'
+start_node = 'a'
+end_node = 'f'
+num_scenarios = 2
 
-# Define weights for OWA and Weighted Sum
-weights = [2, 1]  # Example weights for OWA
-k_values = [2, 4, 8, 16]  # Different k values to test
+path, max_time = robust_shortest_path_maxmin(nodes, arcs, start_node, end_node, num_scenarios)
+print(f"Chemin robuste (MaxMin) : {path}")
+print(f"Temps maximal sur le chemin : {max_time}")
 
-# Test Maximin
-print("\n=== Maxmin Approach ===")
-result_maximin = chemin_robuste(nodes1, transitions1, start1, end1, weights, k_values, function="maximin")
-print(f"Path: {result_maximin.get('path', 'No solution')}")
-print(f"Cost: {result_maximin.get('cost', 'N/A')}")
-
-# Test Minimax Regret
-print("\n=== Minmax Regret Approach ===")
-result_minimax = chemin_robuste(nodes1, transitions1, start1, end1, weights, k_values, function="minimax_regret")
-print(f"Path: {result_minimax.get('path', 'No solution')}")
-print(f"Cost: {result_minimax.get('cost', 'N/A')}")
-
-# Test OWA with different k-values
-print("\n=== OWA Approach ===")
-for k in k_values:
-    current_weights = [k, 1]  # OWA weights
-    result_owa = chemin_robuste(nodes1, transitions1, start1, end1, current_weights, k_values, function="owa")
-    print(f"k = {k}:")
-    print(f"  Path: {result_owa.get('path', 'No solution')}")
-    print(f"  Cost: {result_owa.get('cost', 'N/A')}")
-
-# Test Weighted Sum
-print("\n=== Weighted Sum Approach ===")
-result_weighted_sum = chemin_robuste(nodes1, transitions1, start1, end1, weights, k_values, function="weighted_sum")
-print(f"Path: {result_weighted_sum.get('path', 'No solution')}")
-print(f"Cost: {result_weighted_sum.get('cost', 'N/A')}")
-
+# path, max_regret = robust_shortest_path_minmax_regret(nodes, arcs, start_node, end_node, num_scenarios)
+# print(f"Chemin robuste (MinMax Regret) : {path}")
+# print(f"Regret maximal sur le chemin : {max_regret}")

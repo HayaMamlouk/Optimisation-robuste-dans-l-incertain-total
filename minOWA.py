@@ -4,87 +4,76 @@ def minOWA(nb_projects, nb_scenarios, costs, utilities, budget, weights, verbose
     """
     Résoudre le problème de minOWA des regrets en retournant les projets sélectionnés dans l'ordre initial.
     """
-
-    # Step 1: Compute z*_i for each scenario
+    # Étape 1 : Calcul de z_star
     z_star = []
+    x_values = []
+
     for i in range(nb_scenarios):
-        model = Model(f"OptimalUtility_Scenario_{i}")
-        x = [model.addVar(vtype=GRB.BINARY, name=f"x_{j}") for j in range(nb_projects)]
-        model.setObjective(quicksum(utilities[i][j] * x[j] for j in range(nb_projects)), GRB.MAXIMIZE)
-        model.addConstr(quicksum(costs[j] * x[j] for j in range(nb_projects)) <= budget, "Budget")
-        model.optimize()
-        if model.status == GRB.OPTIMAL:
-            z_star.append(model.objVal)
-        else:
-            print(f"Failed to compute z* for scenario {i + 1}")
-            return
+        # Initialisation du modèle
+        m = Model(f"OptimalUtility_Scenario_{i}")
+        m.setParam('OutputFlag', 0)
 
-    # Step 2: Solve minOWA of regrets problem
-    model = Model("minOWA_of_regrets")
+        # Déclaration des variables
+        x = [m.addVar(vtype=GRB.BINARY, name=f"x_{j}") for j in range(nb_projects)]
 
-    # Variables de décision
-    x = [model.addVar(vtype=GRB.BINARY, name=f"x_{j}") for j in range(nb_projects)]
-    regrets = [model.addVar(vtype=GRB.CONTINUOUS, name=f"regret_{i}") for i in range(nb_scenarios)]
-    a = [[model.addVar(vtype=GRB.CONTINUOUS, name=f"a_{i}_{k}") for k in range(nb_scenarios)] for i in range(nb_scenarios)]
+        # Définition de l'objectif
+        m.setObjective(quicksum(utilities[i][j] * x[j] for j in range(nb_projects)), GRB.MAXIMIZE)
 
-    # Calculer w_k'
-    w_prime = [weights[k] - weights[k + 1] if k < nb_scenarios - 1 else weights[k] for k in range(nb_scenarios)]
+        # Contrainte du budget
+        m.addConstr(quicksum(costs[j] * x[j] for j in range(nb_projects)) <= budget, "Budget")
 
-    # Définir la fonction objectif
-    model.setObjective(
-        quicksum(w_prime[k] * quicksum(a[i][k] * regrets[i] for i in range(nb_scenarios)) for k in range(nb_scenarios)),
-        GRB.MINIMIZE
+        # Résolution
+        m.optimize()
+
+        # Stocker la valeur optimale de z_i
+        z_star.append(m.objVal)
+        x_values.append([x[j].x for j in range(nb_projects)])
+
+    # Étape 2 : Résolution du problème minOWA des regrets
+    sorted_weights = sorted(weights, reverse=True)
+    w_prime = [sorted_weights[i] - sorted_weights[i + 1] if i < len(weights) - 1 else sorted_weights[i]
+            for i in range(len(weights))]
+
+    m = Model("minOWA_of_regrets")
+    m.setParam('OutputFlag', 0)
+
+    # Déclaration des variables
+    x = [m.addVar(vtype=GRB.BINARY, name=f"x_{j}") for j in range(nb_projects)]
+    rk = [m.addVar(vtype=GRB.CONTINUOUS, name=f"r_{k}") for k in range(nb_scenarios)]
+    b = [[m.addVar(vtype=GRB.CONTINUOUS, name=f"b_{i}_{k}") for k in range(nb_scenarios)] for i in range(nb_scenarios)]
+
+    # Définition de l'objectif
+    m.setObjective(
+        quicksum((w_prime[k] * (((k+1) * rk[k]) - (quicksum(b[i][k] for i in range(nb_scenarios))))) 
+                for k in range(nb_scenarios)), GRB.MINIMIZE
     )
 
-    # Contraintes pour regrets
-    for i in range(nb_scenarios):
-        regret_expr = z_star[i] - quicksum(utilities[i][j] * x[j] for j in range(nb_projects))
-        model.addConstr(regrets[i] >= regret_expr, f"RegretConstraint_{i}")
+    # Contrainte du budget
+    m.addConstr(quicksum(costs[j] * x[j] for j in range(nb_projects)) <= budget, "Budget")
 
-    # Contraintes pour linéarisation de L_k(r)
+    
+
+    # Contraintes sur les regrets et linéarisation
     for k in range(nb_scenarios):
-        model.addConstr(quicksum(a[i][k] for i in range(nb_scenarios)) == k + 1, f"SumA_{k}")
         for i in range(nb_scenarios):
-            model.addConstr(a[i][k] <= 1, f"UpperBoundA_{i}_{k}")
-            model.addConstr(a[i][k] >= 0, f"NonNegA_{i}_{k}")
-
-    # Contraintes de budget
-    model.addConstr(quicksum(costs[j] * x[j] for j in range(nb_projects)) <= budget, "Budget")
+            m.addConstr(rk[k] - b[i][k] >= (z_star[i] - quicksum(utilities[i][j] * x[j] for j in range(nb_projects))), name=f"AuxiliaryConstraint_{i}_{k}")
+            m.addConstr(b[i][k] <= 0, name=f"Neg_b_{i}_{k}")
 
     # Résolution
-    model.optimize()
+    m.optimize()
 
-    if model.status == GRB.UNBOUNDED:
-        print("Model is unbounded.")
-        return
-    if model.status == GRB.INFEASIBLE:
-        print("Model is infeasible.")
-        model.computeIIS()
-        model.write("infeasible_model.ilp")
-        return
-
-    if verbose and model.status == GRB.OPTIMAL:
-        print("\nValeur de la fonction objectif (minOWA):", model.objVal)
-
-        # Sélectionner les projets dans l'ordre initial
-        selected_projects = [j + 1 for j in range(nb_projects) if x[j].x > 0.5]
-
-        print("\nProjets sélectionnés dans l'ordre initial:")
-        print(selected_projects)
-
-    return selected_projects, model.objVal
-
-# Example data for 2 scenarios and 10 projects
-nb_projects = 10
-nb_scenarios = 2
-costs = [60, 10, 15, 20, 25, 20, 5, 15, 20, 60]
-utilities = [
-    [70, 18, 16, 14, 12, 10, 8, 6, 4, 2],  # Scenario 1
-    [2, 4, 6, 8, 10, 12, 14, 16, 18, 70],  # Scenario 2
-]
-budget = 100
-weights = [2, 1]  # OWA weights
-
-# Solve minOWA of regrets
-minOWA(nb_projects, nb_scenarios, costs, utilities, budget, weights)
+    # Affichage des résultats
+    if verbose:
+        print("Solution optimale:")
+        for j in range(nb_projects):
+            print(f"x{j + 1} = {x[j].x}")
+        print ("regrets:") 
+        for i in range(nb_scenarios):
+            print("z_star_", i + 1, "=", z_star[i])
+            print(f"regret_{i + 1} = {z_star[i] - quicksum(utilities[i][j] * x[j].x for j in range(nb_projects))}") 
+        print("\nValeur de la fonction objectif:", m.objVal)
+        r_values = [rk[k].x for k in range(nb_scenarios)]
+        print("Valeurs des r_k dans chaque scénario:", r_values)
+        print("w'_k:", w_prime)
+        print("b_ik:", [[b[i][k].x for k in range(nb_scenarios)] for i in range(nb_scenarios)])
 

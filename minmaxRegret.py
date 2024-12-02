@@ -10,6 +10,7 @@ def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget, verbose=Tr
     for i in range(nb_scenarios):
         # initialisation du modèle
         m = Model("maximize_scenario_%d" % (i + 1))
+        m.setParam('OutputFlag', 0)  # Désactiver les logs de Gurobi
         
         # declaration des variables de decision, x_j = 1 si le projet j est sélectionné, 0 sinon
         x = []
@@ -69,11 +70,11 @@ def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget, verbose=Tr
         print("")
         print("Valeur de la fonction objective (minmax regret) :", t.x)
 
-        # Compute the resulting utilities z(x) in each scenario
+        # calcule des utilités dans les scénarios
         z = [sum(utilities[i][j] * x[j].x for j in range(nb_projects)) for i in range(nb_scenarios)]
         print("Utilités dans les scénarios:", z)
 
-        # Compute regrets for each scenario
+        # calcule des regrets dans les scénarios
         regrets = [z_star[i] - z[i] for i in range(nb_scenarios)]
         print("Regrets dans les scénarios:", regrets)
 

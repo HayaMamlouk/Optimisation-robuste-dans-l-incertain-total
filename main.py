@@ -2,6 +2,7 @@ from maxmin import maxmin
 from minmaxRegret import minmaxRegret
 from tps_resol import calcul_tps_resol
 from maxOWA import maxOWA
+from minOWA import minOWA
 from myData import *
 
 
@@ -19,5 +20,6 @@ from myData import *
 # Probleme minmaxRegret : Calculer le temps de résolution pour les différentes combinaisons de n et p
 # calcul_tps_resol(minmaxRegret, n_values, p_values, nb_instances)
 
-maxOWA(n_projects, n_scenarios, costs, utilities, budget, weights)
+# maxOWA(n_projects, n_scenarios, costs, utilities, budget, weights)
+minOWA(n_projects, n_scenarios, costs, utilities, budget, weights)
 

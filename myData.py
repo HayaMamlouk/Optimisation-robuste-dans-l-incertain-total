@@ -27,10 +27,14 @@ nb_instances = 10      # nombre d'instances à génére
 
 ##############################################################################################
 
+# poids des objectifs pour OWA
 weights = [2, 1]  # poids des objectifs pour OWA 
 
 ##############################################################################################
 
+# données pour le problème du chemin le plus rapide : instance 1 et 2 avec 2 scénarios
+
+# Instance 1
 nodes1 = ['a', 'b', 'c', 'd', 'e', 'f']
 transitions1 = {
     ('a', 'b'): (4, 3), ('a', 'c'): (5, 1),

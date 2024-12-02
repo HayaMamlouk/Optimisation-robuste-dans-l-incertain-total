@@ -60,11 +60,9 @@ Ce fichier contient l'implémentation de l'algorithme MaxMin, qui est utilisé p
 
 Ce fichier contient l'implémentation de l'algorithme MinMax Regret, qui permet de résoudre le problème d'optimisation en minimisant le regret maximal. Cela permet de prendre des décisions en fonction des scénarios les plus défavorables.
 
-### 4. `tps_resol.py`
+### 4. `utils.py`
 
-Ce fichier contient la fonction `calcul_tps_resol`, qui est utilisée pour calculer le temps de résolution pour les différentes combinaisons de paramètres du problème. Cette fonction est utilisée pour les problèmes MaxMin, MinMax Regret, MaxOWA, et MinOWA.
-
-### 5. `maxOWA.py`
+Ce fichier contient la fonction `calcul_tps_resol`, qui est utilisée pour calculer le temps de résolution pour les différentes combinaisons de paramètres du problème. Cette fonction est utilisée pour les problèmes MaxMin, MinMax Regret, MaxOWA, et MinOWA. Le fichier contient également la fonction `z_star`, qui est utilisée pour calculer le problème de maximisation pour un scénario donné. Cette fonction est utilisée pour les problèmes MinMax Regret et MinOWA.
 
 Ce fichier contient l'implémentation de l'algorithme MaxOWA, une méthode d'optimisation basée sur les moyennes pondérées opérées sur les scénarios. Il permet de résoudre le problème MaxOWA.
 

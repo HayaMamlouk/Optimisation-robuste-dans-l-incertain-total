@@ -32,6 +32,7 @@ def minmaxRegret(nb_projects, nb_scenarios, costs, utilities, budget, verbose=Tr
 
     # etape 2: résoudre le problème de minimisation du regret
     m = Model("minmax_regret")
+    m.setParam('OutputFlag', 0)  # Désactiver les logs de
 
     # declaration des variables de decision
     x = []

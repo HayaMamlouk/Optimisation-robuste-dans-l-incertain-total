@@ -10,6 +10,7 @@ def maxmin(nb_projects, nb_scenarios, costs, utilities, budget, verbose=True) :
     """
     # initialisation du modèle
     m = Model("maxmin")
+    m.setParam('OutputFlag', 0)  # Désactiver les logs de Gurobi
 
     # declaration des variables de decision, x_j = 1 si le projet j est sélectionné, 0 sinon
     x = []

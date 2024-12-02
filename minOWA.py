@@ -44,7 +44,7 @@ def minOWA(nb_projects, nb_scenarios, costs, utilities, budget, weights, verbose
 
     # Définition de l'objectif
     m.setObjective(
-        quicksum((w_prime[k] * (((k+1) * rk[k]) - (quicksum(b[i][k] for i in range(nb_scenarios))))) 
+        quicksum((w_prime[k] * (((k+1) * rk[k]) + (quicksum(b[i][k] for i in range(nb_scenarios))))) 
                 for k in range(nb_scenarios)), GRB.MINIMIZE
     )
 
@@ -57,7 +57,7 @@ def minOWA(nb_projects, nb_scenarios, costs, utilities, budget, weights, verbose
     for k in range(nb_scenarios):
         for i in range(nb_scenarios):
             m.addConstr(rk[k] - b[i][k] >= (z_star[i] - quicksum(utilities[i][j] * x[j] for j in range(nb_projects))), name=f"AuxiliaryConstraint_{i}_{k}")
-            m.addConstr(b[i][k] <= 0, name=f"Neg_b_{i}_{k}")
+            m.addConstr(b[i][k] >= 0, name=f"Neg_b_{i}_{k}")
 
     # Résolution
     m.optimize()

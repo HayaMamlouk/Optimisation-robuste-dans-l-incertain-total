@@ -2,33 +2,41 @@ import random
 import time
 import pandas as pd
 
-def calcul_tps_resol(func, n_values, p_values, nb_instances):
-    # Store results
+def calcul_tps_resol(func, n_values, p_values, nb_instances, OWA=False):
+    # stocker les résultats
     results = []
 
-    # Loop over n and p values
+    # itérer sur les différentes combinaisons de n et p
     for n in n_values:
         for p in p_values:
             times = []
             
             for _ in range(nb_instances):
-                # Generate random costs and utilities
+                # generer aleatoirement les couts et les utilités entre 1 et 100
                 costs = [random.randint(1, 100) for _ in range(p)]
                 utilities = [[random.randint(1, 100) for _ in range(p)] for _ in range(n)]
                 
-                # Define budget as 50% of the total cost
+                # budget = 50% du cout total
                 budget = int(0.5 * sum(costs))
-                
-                # Start timing
+
+                # generer aleatoirement les poids entre 1 et le nombre de scenarios
+                if OWA:
+                    weights = [random.randint(1, n+1) for _ in range(n)]
+
+                # start timing
                 start_time = time.time()
                 
-                # Create the model
-                func(p, n, costs, utilities, budget, verbose=False)
+                if OWA:
+                    # Resolution du problème de OWA
+                    func(p, n, costs, utilities, budget, weights, verbose=False)
+                else:
+                    # appel de la fonction
+                    func(p, n, costs, utilities, budget, verbose=False)
 
-                # Record the resolution time
+                # stocker le temps de résolution
                 times.append(time.time() - start_time)
 
-            # Calculate average time for this (n, p) combination
+            # Calculer le temps moyen de résolution
             average_time = sum(times) / len(times) if times else None
             results.append({
                 "n": n,
@@ -36,10 +44,8 @@ def calcul_tps_resol(func, n_values, p_values, nb_instances):
                 "average_resolution_time": average_time
             })
 
-    # Convert results to a DataFrame
+   
     results_df = pd.DataFrame(results)
-    
-    # Display the results
     print(results_df)
-    return results_df
+    return 
 

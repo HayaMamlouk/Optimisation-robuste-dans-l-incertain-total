@@ -15,7 +15,6 @@ Le projet nécessite également les modules suivants :
   ```
   Assurez-vous également que vous disposez d'une licence valide pour Gurobi. Si vous n'en avez pas, vous pouvez obtenir une licence académique gratuite sur [le site de Gurobi](https://www.gurobi.com/downloads/).
 
-
 ## Exécution du Programme
 
 Le programme principal est contenu dans le fichier `main.py`. Pour exécuter le programme, ouvrez un terminal et lancez la commande suivante :
@@ -26,7 +25,7 @@ python main.py
 
 Cela lancera le programme et affichera un menu interactif où vous pourrez choisir quel problème résoudre. Vous serez invité à entrer un numéro pour sélectionner l'option souhaitée (par exemple, pour résoudre le problème MaxMin, entrez `1`).
 
-### 3. Interface Utilisateur
+### Interface Utilisateur
 
 Une fois que vous avez exécuté le script, vous verrez un menu affiché dans le terminal comme suit :
 
@@ -42,9 +41,13 @@ Sélectionnez le problème à résoudre :
 8. Problème MinOWA : Calculer le temps de résolution
 9. Problème du chemin le plus rapide : Résoudre Instance 1
 10. Problème du chemin le plus rapide : Résoudre Instance 2
+11. Chemin robuste (MaxMin)
+12. Chemin robuste (MinMax Regret)
+13. Chemin robuste (MaxOWA)
+14. Chemin robuste (MinOWA)
 ```
 
-Entrez un numéro entre `1` et `10` pour sélectionner un problème à résoudre. Le programme exécutera ensuite l'option choisie et affichera les résultats correspondants.
+Entrez un numéro entre `1` et `14` pour sélectionner un problème à résoudre. Le programme exécutera ensuite l'option choisie et affichera les résultats correspondants.
 
 ## Description des Fichiers du Projet
 
@@ -64,6 +67,8 @@ Ce fichier contient l'implémentation de l'algorithme MinMax Regret, qui permet 
 
 Ce fichier contient la fonction `calcul_tps_resol`, qui est utilisée pour calculer le temps de résolution pour les différentes combinaisons de paramètres du problème. Cette fonction est utilisée pour les problèmes MaxMin, MinMax Regret, MaxOWA, et MinOWA. Le fichier contient également la fonction `z_star`, qui est utilisée pour calculer le problème de maximisation pour un scénario donné. Cette fonction est utilisée pour les problèmes MinMax Regret et MinOWA.
 
+### 5. `maxOWA.py`
+
 Ce fichier contient l'implémentation de l'algorithme MaxOWA, une méthode d'optimisation basée sur les moyennes pondérées opérées sur les scénarios. Il permet de résoudre le problème MaxOWA.
 
 ### 6. `minOWA.py`
@@ -74,6 +79,10 @@ Ce fichier contient l'implémentation de l'algorithme MinOWA, similaire à MaxOW
 
 Ce fichier contient l'implémentation du problème du chemin le plus rapide, résolvant des instances où vous devez trouver le chemin optimal entre deux points dans un graphe donné. Il est utilisé pour résoudre les problèmes de chemin dans deux instances distinctes.
 
-### 8. `myData.py`
+### 8. `robustChemin.py`
+
+Ce fichier contient les implémentations des différentes variantes de "chemin robuste", y compris les versions MaxMin, MinMax Regret, MaxOWA et MinOWA pour la recherche de chemins les plus rapides dans un graphe avec des conditions robustes. Ces algorithmes optimisent les chemins en fonction de critères robustes, en tenant compte de la variabilité des transitions et des coûts.
+
+### 9. `myData.py`
 
 Ce fichier contient les données nécessaires pour résoudre les problèmes, comme les projets, les scénarios, les coûts, les utilités, et les autres paramètres associés aux différents problèmes d'optimisation. Ce fichier définit également les valeurs de départ utilisées dans le programme.

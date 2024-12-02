@@ -47,9 +47,9 @@ def robust_shortest_path_maxmin(nodes, arcs, start, end, scenarios):
     # Contraintes pour z
     for s in range(scenarios):
         # Extract weights for the selected scenario
-        weights = {arc: costs[s] for arc, costs in transitions.items()}
+        weights = {arc: costs[s] for arc, costs in arcs.items()}
         # weights_negative = {key: value * -1 for key, value in weights.items()}
-        model.addConstr(z >= quicksum(weights[arc] * x[arc] for arc in transitions), f"time_scenario_{s}")
+        model.addConstr(z >= quicksum(weights[arc] * x[arc] for arc in arcs), f"time_scenario_{s}")
 
     # Résolution du modèle
     model.optimize()
@@ -67,32 +67,32 @@ def robust_shortest_path_maxmin(nodes, arcs, start, end, scenarios):
 
 def robust_shortest_path_minmax_regret(nodes, arcs, start, end, scenarios):
     """
-    Solves the Min-Max Regret robust shortest path problem.
+    Résout le problème de chemin le plus court Min-Max Regret robuste.
 
-    Parameters:
-    - nodes: List of nodes in the graph.
-    - arcs: Dictionary {(i, j): [t_s1, t_s2, ...]} with travel times for each arc under each scenario.
-    - start: Starting node.
-    - end: Destination node.
-    - scenarios: Number of scenarios.
+    Paramètres :
+    - nodes : Liste des nœuds du graphe.
+    - arcs : Dictionnaire {(i, j): [t_s1, t_s2, ...]} avec les temps de trajet pour chaque arc sous chaque scénario.
+    - start : Nœud de départ.
+    - end : Nœud de destination.
+    - scenarios : Nombre de scénarios.
 
-    Returns:
-    - Optimal path minimizing the maximum regret and the corresponding regret value.
+    Retourne :
+    - Le chemin optimal minimisant le regret maximal et la valeur de regret correspondante.
     """
 
     
-    # Step 1: Compute optimal path costs for each scenario
+    # Étape 1 : Calculer les coûts du chemin optimal pour chaque scénario
     z_star = []
     for s in range(scenarios):
         result = chemin_plus_rapide(nodes, arcs, start, end, s)
         cost = result['cost']
         z_star.append(cost)
 
-    # print("The shortest path costs for each scenario are:")
+    # print("Les coûts des chemins les plus courts pour chaque scénario sont :")
     # print(z_star)
     # print()
     
-    # Step 2: Solve the Min-Max Regret problem
+    # Étape 2 : Résoudre le problème Min-Max Regret
     model = gp.Model("MinMax_Regret_Shortest_Path")
     model.setParam('OutputFlag', 0)
 
@@ -100,14 +100,14 @@ def robust_shortest_path_minmax_regret(nodes, arcs, start, end, scenarios):
     regret_max = model.addVar(vtype=GRB.CONTINUOUS, name="regret_max")
     model.setObjective(regret_max, GRB.MINIMIZE)
     
-    # Regret constraints for each scenario
+    # Contraintes de regret pour chaque scénario
 
     for s in range(scenarios):
-        weights = {arc: costs[s] for arc, costs in transitions.items()}
+        weights = {arc: costs[s] for arc, costs in arcs.items()}
         regret = quicksum(weights[arc] * x[arc] for arc in arcs) - z_star[s]
         model.addConstr(regret_max >= regret, name=f"regret_scenario_{s}")
     
-    # Flow conservation constraints
+    # Contraintes de conservation du flux
     for node in nodes:
         inflow = quicksum(x[(i, node)] for i in nodes if (i, node) in arcs)
         outflow = quicksum(x[(node, j)] for j in nodes if (node, j) in arcs)
@@ -124,8 +124,7 @@ def robust_shortest_path_minmax_regret(nodes, arcs, start, end, scenarios):
         selected_arcs = [arc for arc in arcs if x[arc].x > 0.5]
         return selected_arcs, model.objVal
     else:
-        raise ValueError("Optimal robust path not found.")
-
+        raise ValueError("Chemin robuste optimal non trouvé.")
 
 def robust_shortest_path_maxOWA(nodes, transitions, start, end, scenarios, weights):
     """
@@ -299,57 +298,3 @@ def robust_shortest_path_minOWA(nodes, transitions, start, end, scenarios, weigh
         print(f"Optimization failed. Status code: {model.status}")
         return None, None
 
-# Exemple d'utilisation
-nodes = ['a', 'b', 'c', 'd', 'e', 'f']
-transitions = {
-    ('a', 'b'): (4, 3), ('a', 'c'): (5, 1),
-    ('b', 'c'): (2, 1), ('b', 'd'): (1, 4), ('b', 'e'): (2, 2), ('b', 'f'): (7, 5),
-    ('c', 'd'): (5, 1), ('c', 'e'): (2, 7),
-    ('d', 'f'): (3, 2), 
-    ('e', 'f'): (5, 2)
-}
-start = 'a'
-end = 'f'
-
-# Define Instance 2
-nodes2 = ['a', 'b', 'c', 'd', 'e', 'f', 'g']
-transitions2 = {
-    ('a', 'b'): (5, 3), ('a', 'c'): (10, 4), ('a', 'd'): (2, 6),
-    ('b', 'c'): (4, 2), ('b', 'd'): (1, 3), ('b', 'e'): (4, 6),
-    ('c', 'e'): (3, 1), ('c', 'f'): (1, 2),
-    ('d', 'c'): (1, 4), ('d', 'f'): (3, 5),
-    ('e', 'g'): (1, 1),
-    ('f', 'g'): (1, 1)
-}
-start2 = 'a'
-end2 = 'g'
-
-# path, max_time = robust_shortest_path_maxmin(nodes, transitions, start, end, 2)
-# print(f"Chemin robuste (MaxMin) : {path}")
-# print(f"Temps maximal sur le chemin : {max_time}")
-
-print()
-
-#robust_shortest_path_maxmin TEST
-# path, max_time = robust_shortest_path_maxmin(nodes2, transitions2, start2, end2, 2)
-# print(f"Chemin robuste (MaxMin) : {path}")
-# print(f"Temps maximal sur le chemin : {max_time}")
-
-#robust_shortest_path_minmax_regret TEST
-# path, max_regret = robust_shortest_path_minmax_regret(nodes, transitions, start, end, 2)
-# print(f"Chemin robuste (MinMax Regret) : {path}")
-# print(f"Regret maximal sur le chemin : {max_regret}")
-
-# robust_shortest_path_maxOWA TEST
-# Résoudre avec différents poids
-# for k in [2, 4, 8, 16]:
-#     weights = [k, 1]
-#     print(f"\nRésultats pour k = {k}:")
-#     robust_shortest_path_maxOWA(nodes, transitions, start, end, 2, weights)
-
-#robust_shortest_path_minOWA TEST
-# Résoudre avec différents poids
-# for k in [2, 4, 8, 16]:
-#     weights = [k, 1]
-#     print(f"\nRésultats pour k = {k}:")
-#     robust_shortest_path_minOWA(nodes, transitions, start, end, 2, weights)
